@@ -1,30 +1,78 @@
 ---
 marp: true
 theme: default
-paginate: true
-header: "Захист інформації: OAuth від фундаменту до продакшену"
-footer: "Лекція 1 — Вступ"
+paginate: false
 style: |
   section {
-    font-size: 26px;
+    font-family: 'Courier New', monospace;
+    font-size: 28px;
+    padding: 60px 80px;
+    justify-content: flex-start;
   }
   h1 {
-    color: #2563eb;
+    color: #000;
+    font-size: 42px;
+    border-bottom: none;
+    margin-bottom: 40px;
   }
   h2 {
-    color: #1e40af;
+    color: #000;
+    font-size: 34px;
   }
   table {
-    font-size: 22px;
+    font-size: 24px;
+    width: 100%;
+  }
+  th {
+    background: none;
+    border-bottom: 2px solid #000;
+  }
+  td, th {
+    padding: 10px 16px;
   }
   code {
-    font-size: 20px;
+    font-size: 22px;
+  }
+  ul, ol {
+    font-size: 28px;
+    line-height: 1.6;
+  }
+  blockquote {
+    border-left: 4px solid #999;
+    color: #555;
+  }
+  section.title {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  section.title h1 {
+    font-size: 44px;
+    margin-bottom: 20px;
+  }
+  section.title p {
+    font-size: 24px;
+    margin: 4px 0;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
   }
 ---
 
+<!-- _class: title -->
+
 # Захист інформації: OAuth від фундаменту до продакшену
 
-## Лекція 1. Вступ. Проблема довіри в інтернеті
+Лекція 1. Вступ. Проблема довіри в інтернеті
+
+Львівський національний університет імені Івана Франка
+Спеціальність 113 — Прикладна математика
+
+2025
 
 ---
 
@@ -48,7 +96,7 @@ style: |
 | **Integrity** | Дані не змінені несанкціоновано |
 | **Availability** | Інформація доступна, коли потрібно |
 
-> Кожна атака порушує щонайменше один з цих принципів
+Кожна атака порушує щонайменше один з цих принципів
 
 ---
 
@@ -57,6 +105,7 @@ style: |
 **OAuth 2.0** — центральна вісь курсу
 
 Через OAuth розкриваємо:
+
 - Криптографічні примітиви (хешування, шифрування, підписи)
 - Протоколи автентифікації та авторизації
 - Безпеку веб-додатків та мікросервісів
@@ -89,7 +138,7 @@ style: |
 - Якщо сервіс зламають — зламають і ваш Google
 - Немає **контролю** над діями сервісу
 
-> OAuth 2.0 вирішує саме цю проблему
+OAuth 2.0 вирішує саме цю проблему
 
 ---
 
@@ -112,12 +161,12 @@ style: |
 
 Набір атрибутів, що описують сутність у системі:
 
-- Username: `ivan.petrov`
+- Username: `ivan.petrenko`
 - Email: `ivan@example.com`
 - ID: `user-12345`
 - X.509 сертифікат
 
-> Один користувач може мати **кілька identity** в різних системах
+Один користувач може мати **кілька identity** в різних системах
 
 ---
 
@@ -139,13 +188,25 @@ style: |
 
 **"Що вам дозволено?"**
 
-Моделі авторизації:
+<div class="columns">
+<div>
+
+**Моделі авторизації:**
+
 - **ACL** — список дозволів для кожного ресурсу
 - **RBAC** — дозволи прив'язані до ролей
 - **ABAC** — рішення на основі атрибутів
 - **OAuth Scopes** — `read`, `write`, `admin`
 
-> Автентифікація **завжди** передує авторизації
+</div>
+<div>
+
+**Послідовність:**
+
+Автентифікація **завжди** передує авторизації: спочатку система впевнюється, хто ви, а потім вирішує, що вам дозволено
+
+</div>
+</div>
 
 ---
 
@@ -191,6 +252,7 @@ Authorization: Basic aXZhbjpwYXNzd29yZA==
 ```
 
 **Проблеми:**
+
 - Credentials з **кожним запитом** (Base64 ≠ шифрування!)
 - Без HTTPS — plain text
 - Немає **logout**
@@ -298,13 +360,28 @@ User ──→ Client (сервіс друку)
 
 **Систематичний підхід до визначення загроз**
 
-Ключові питання:
+<div class="columns">
+<div>
+
+**Ключові питання:**
+
 1. **Що ми будуємо?** → Опис системи
 2. **Що може піти не так?** → Ідентифікація загроз
 3. **Що ми з цим зробимо?** → Mitigation
 4. **Чи достатньо?** → Validation
 
-> Проактивний підхід замість реактивного
+</div>
+<div>
+
+**Стратегії реагування:**
+
+- **Mitigate** — усунути загрозу
+- **Accept** — прийняти ризик
+- **Transfer** — передати відповідальність
+- **Avoid** — уникнути сценарію
+
+</div>
+</div>
 
 ---
 
@@ -328,25 +405,20 @@ User ──→ Client (сервіс друку)
 | **S** | Фішинговий Client, підробка redirect_uri | Валідація redirect_uri, client_secret |
 | **T** | Модифікація authorization code, JWT | Цифрові підписи, HTTPS |
 | **R** | Клієнт заперечує запит scope | Логування, audit trail |
-| **I** | Токени в URL → логи, referrer | Back-channel, не передавати в URL |
+| **I** | Токени в URL → логи, referrer | Back-channel, не в URL |
 | **D** | Flood на token endpoint | Rate limiting |
-| **E** | Розширення scope в токені | Валідація scopes, підпис токенів |
+| **E** | Розширення scope в токені | Валідація scopes, підпис |
 
 ---
 
 # STRIDE: елементи DFD
 
-```
- DFD Element          │ Applicable STRIDE
-──────────────────────┼─────────────────────
- External Entity      │ S, R
- Process              │ S, T, R, I, D, E
- Data Store           │ T, R, I, D
- Data Flow            │ T, I, D
-```
-
-Для кожної загрози обираємо стратегію:
-**Mitigate** | **Accept** | **Transfer** | **Avoid**
+| DFD Element | Applicable STRIDE |
+|-------------|-------------------|
+| External Entity | S, R |
+| Process | S, T, R, I, D, E |
+| Data Store | T, R, I, D |
+| Data Flow | T, I, D |
 
 ---
 
@@ -362,7 +434,7 @@ User ──→ Client (сервіс друку)
 
 # Що далі?
 
-## Лекція 2: Хешування та цілісність даних
+**Лекція 2: Хешування та цілісність даних**
 
 - SHA-256, bcrypt, Argon2
 - Ентропія та CSPRNG
@@ -372,6 +444,8 @@ User ──→ Client (сервіс друку)
 
 ---
 
+<!-- _class: title -->
+
 # Дякую за увагу!
 
-## Питання?
+Питання?
