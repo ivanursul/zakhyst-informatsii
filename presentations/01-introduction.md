@@ -448,7 +448,6 @@ OAuth вирішує: **«як дати комусь обмежений дост
 - **SHA-256** (Secure Hash Algorithm) — криптографічна хеш-функція
 - **bcrypt**, **Argon2** — алгоритми хешування паролів
 - **CSPRNG** (Cryptographically Secure Pseudo-Random Number Generator) — генерація випадкових значень для токенів і ключів
-- **HMAC** (Hash-based Message Authentication Code) — перевірка цілісності повідомлень
 - **Rainbow tables** та **salting** — атака на хеші та захист
 
 ---
