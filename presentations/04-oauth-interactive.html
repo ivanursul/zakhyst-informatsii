@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth 2.0 &mdash; Інтерактивна демонстрація</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface2: #f8f9fa;
+    --accent: #6741d9;
+    --accent2: #845ef7;
+    --green: #2f9e44;
+    --red: #e03131;
+    --orange: #e8590c;
+    --blue: #1971c2;
+    --pink: #c2255c;
+    --text: #1e1e1e;
+    --text-dim: #656565;
+    --radius: 3px;
+    --hand: 'Caveat', cursive;
+    --body: 'Courier New', monospace;
+    --mono: 'JetBrains Mono', monospace;
+    --sketch-border: 2px solid #1e1e1e;
+  }
+
+  body {
+    font-family: 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: none;
+    letter-spacing: 0.3px;
+    font-size: clamp(18px, 1.5vw, 28px);
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 32px;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    border-bottom: 2px solid #1e1e1e;
+  }
+  .nav-title { font-family: var(--body); font-weight: 700; font-size: 22px; color: var(--text); }
+  .nav-steps { display: flex; gap: 6px; }
+  .nav-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid #1e1e1e;
+  }
+  .nav-dot.active { background: var(--accent); border-color: var(--accent); transform: scale(1.2); }
+  .nav-dot.done { background: var(--green); border-color: var(--green); }
+
+  /* ── SCENES ── */
+  .scene {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 80px 32px 32px;
+    animation: fadeIn 0.6s ease;
+  }
+  .scene.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideInLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes glow { 0%, 100% { box-shadow: 3px 3px 0 #1e1e1e; } 50% { box-shadow: 5px 5px 0 var(--accent); } }
+  @keyframes drawLine {
+    from { stroke-dashoffset: 1000; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes blink { 50% { border-color: transparent; } }
+  @keyframes rainEmoji {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+
+  .scene-title {
+    font-family: var(--body);
+    font-size: clamp(40px, 5vw, 80px);
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-align: center;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .scene-subtitle {
+    font-family: var(--body);
+    font-size: clamp(22px, 2.5vw, 40px);
+    color: var(--text-dim);
+    margin-bottom: 40px;
+    text-align: center;
+    max-width: 80vw;
+  }
+  .gradient-text {
+    color: var(--accent);
+    -webkit-text-fill-color: var(--accent);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 12px 28px; border: var(--sketch-border); border-radius: var(--radius);
+    font-family: var(--body); font-weight: 700; font-size: 20px;
+    cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    background: #fff; color: var(--text);
+    transform: rotate(-0.5deg);
+  }
+  .btn:hover { transform: rotate(0deg) translateY(-2px); box-shadow: 4px 4px 0 #1e1e1e; }
+  .btn-primary { background: #a5d8ff; color: var(--text); }
+  .btn-primary:hover { background: #74c0fc; }
+  .btn-danger { background: #ffc9c9; color: var(--red); }
+  .btn-danger:hover { background: #ffa8a8; }
+  .btn-success { background: #b2f2bb; color: var(--green); }
+  .btn-success:hover { background: #8ce99a; }
+  .btn-outline { background: #fff; color: var(--text); }
+  .btn-outline:hover { background: #f1f3f5; }
+  .btn-nav {
+    position: fixed; bottom: 32px;
+    padding: 10px 24px; border-radius: var(--radius);
+    font-family: var(--body); font-weight: 700; font-size: 18px;
+    cursor: pointer; border: var(--sketch-border); transition: all 0.2s;
+    z-index: 100; background: #fff;
+  }
+  .btn-prev { left: 32px; background: #fff; color: var(--text-dim); }
+  .btn-prev:hover { box-shadow: 3px 3px 0 #1e1e1e; transform: translateY(-2px); }
+  .btn-next { right: 32px; background: #a5d8ff; color: var(--text); }
+  .btn-next:hover { box-shadow: 3px 3px 0 #1e1e1e; transform: translateY(-2px); }
+
+  /* ── CARDS ── */
+  .card {
+    background: #fff;
+    border: var(--sketch-border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    transition: all 0.2s;
+  }
+  .card:hover { box-shadow: 3px 3px 0 #1e1e1e; transform: translateY(-1px); }
+
+  /* ── ANALOGY SCENE ── */
+  .analogy-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 20px;
+    align-items: center;
+    max-width: 90vw;
+    width: 100%;
+  }
+  .analogy-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 40px 32px;
+    text-align: center;
+    border: var(--sketch-border);
+    transition: all 0.3s;
+  }
+  .analogy-card.bad { background: #fff5f5; border-color: var(--red); transform: rotate(-1deg); }
+  .analogy-card.good { background: #f0fff4; border-color: var(--green); transform: rotate(0.8deg); }
+  .analogy-card:hover { box-shadow: 4px 4px 0 #1e1e1e; }
+  .analogy-icon { font-size: 64px; margin-bottom: 16px; display: block; }
+  .analogy-label { font-family: var(--body); font-weight: 700; font-size: clamp(28px, 2.5vw, 42px); margin-bottom: 8px; }
+  .analogy-desc { color: var(--text-dim); font-size: clamp(18px, 1.5vw, 26px); line-height: 1.6; font-family: var(--body); }
+  .analogy-vs { font-family: var(--body); font-size: 36px; font-weight: 700; color: var(--text-dim); text-align: center; }
+
+  /* ── PASSWORD INPUT SCENE ── */
+  .password-demo {
+    max-width: 40vw; width: 100%; min-width: 400px;
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 32px;
+    border: var(--sketch-border);
+    transform: rotate(-0.5deg);
+    box-shadow: 4px 4px 0 #1e1e1e;
+  }
+  .password-demo h3 { margin-bottom: 20px; font-size: 28px; font-family: var(--body); }
+  .input-group { margin-bottom: 16px; }
+  .input-group label { display: block; font-size: 17px; color: var(--text-dim); margin-bottom: 6px; font-family: var(--body); font-weight: 600; }
+  .input-group input {
+    width: 100%; padding: 10px 14px;
+    background: #fff; border: var(--sketch-border);
+    border-radius: var(--radius); color: var(--text);
+    font-family: var(--body); font-size: 15px;
+    outline: none; transition: border-color 0.3s;
+  }
+  .input-group input:focus { border-color: var(--accent); }
+  .input-group input.typing-anim {
+    overflow: hidden; white-space: nowrap;
+    border-right: 2px solid var(--text);
+    animation: blink 0.7s step-end infinite;
+  }
+
+  /* ── CONSENT SCREEN ── */
+  .consent-modal {
+    max-width: 40vw; width: 100%; min-width: 400px;
+    background: #fff; color: #1e1e1e;
+    border-radius: var(--radius); padding: 36px;
+    border: var(--sketch-border);
+    box-shadow: 6px 6px 0 #1e1e1e;
+    animation: popIn 0.5s ease;
+    transform: rotate(0.5deg);
+  }
+  .consent-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .consent-app-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .consent-app-name { font-family: var(--body); font-weight: 700; font-size: 28px; }
+  .consent-app-url { font-size: 14px; color: #656565; font-family: var(--body); }
+  .consent-text { color: #1e1e1e; font-size: 20px; margin-bottom: 20px; line-height: 1.6; font-family: var(--body); }
+  .consent-perms { list-style: none; margin-bottom: 28px; }
+  .consent-perms li {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; margin-bottom: 8px;
+    background: #f0fff4; border: 1px solid #2f9e44; border-radius: var(--radius);
+    font-size: 19px; color: #1e1e1e; font-family: var(--body);
+    animation: slideInLeft 0.4s ease both;
+  }
+  .consent-perms li:nth-child(2) { animation-delay: 0.15s; }
+  .consent-perms li .perm-icon { font-size: 20px; }
+  .consent-perms li.granted .perm-icon { color: var(--green); }
+  .consent-btns { display: flex; gap: 12px; }
+  .consent-btns .btn { flex: 1; justify-content: center; padding: 14px; }
+
+  /* ── TOKEN DISPLAY ── */
+  .token-card {
+    max-width: 50vw; width: 100%; min-width: 500px;
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 32px;
+    border: var(--sketch-border);
+    border-left: 4px solid var(--green);
+    font-family: var(--body);
+    box-shadow: 4px 4px 0 #1e1e1e;
+    transform: rotate(0.3deg);
+  }
+  .token-card .token-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; font-weight: 700; font-size: 20px;
+    font-family: var(--body);
+  }
+  .token-part {
+    padding: 4px 0;
+    font-size: 16px;
+    word-break: break-all;
+    line-height: 1.6;
+  }
+  .token-part.header-part { color: var(--red); }
+  .token-part.payload-part { color: var(--accent2); }
+  .token-part.sig-part { color: var(--green); }
+  .token-decoded {
+    margin-top: 16px;
+    padding: 16px;
+    background: #f8f9fa;
+    border: 1px dashed #ccc;
+    border-radius: var(--radius);
+    font-size: 15px;
+    line-height: 1.7;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .token-decoded.visible { opacity: 1; }
+
+  /* ── REVOKE SCENE ── */
+  .apps-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 20px; max-width: 60vw; width: 100%;
+    margin-bottom: 24px;
+  }
+  .app-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 24px 16px;
+    text-align: center;
+    border: var(--sketch-border);
+    transition: all 0.4s;
+    transform: rotate(-0.3deg);
+  }
+  .app-card:nth-child(2) { transform: rotate(0.5deg); }
+  .app-card:nth-child(3) { transform: rotate(-0.7deg); }
+  .app-card:hover { box-shadow: 3px 3px 0 #1e1e1e; }
+  .app-card .app-icon { font-size: 40px; margin-bottom: 10px; display: block; }
+  .app-card .app-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; font-family: var(--body); }
+  .app-card .app-scope { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; font-family: var(--body); }
+  .app-card.connected { border-color: var(--green); border-width: 2px; }
+  .app-card.revoked {
+    border-color: var(--red); opacity: 0.5;
+    animation: shake 0.4s ease;
+  }
+  .app-card .revoke-btn {
+    padding: 8px 16px; border-radius: var(--radius); border: 2px solid var(--red);
+    font-family: var(--body); font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: all 0.3s;
+    background: #ffc9c9; color: var(--red);
+  }
+  .app-card .revoke-btn:hover { background: var(--red); color: white; box-shadow: 2px 2px 0 #1e1e1e; }
+  .app-card.revoked .revoke-btn { display: none; }
+
+  /* ── COMPARE SCENE ── */
+  .compare-container {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 32px; max-width: 85vw; width: 100%;
+  }
+  .compare-box {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 32px;
+    border: var(--sketch-border);
+    transition: all 0.3s;
+  }
+  .compare-box:hover { box-shadow: 4px 4px 0 #1e1e1e; }
+  .compare-box.bad { border-color: var(--red); background: #fff5f5; transform: rotate(-0.5deg); }
+  .compare-box.good { border-color: var(--green); background: #f0fff4; transform: rotate(0.5deg); }
+  .compare-box h3 { margin-bottom: 16px; font-size: 24px; display: flex; align-items: center; gap: 8px; font-family: var(--body); }
+  .compare-box ul { list-style: none; }
+  .compare-box li {
+    padding: 8px 0;
+    font-size: 18px;
+    display: flex; align-items: flex-start; gap: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-family: var(--body);
+  }
+  .compare-box li .icon { flex-shrink: 0; font-size: 18px; }
+
+  /* ── FULL FLOW ANIMATION ── */
+  .full-flow {
+    max-width: 85vw; width: 100%;
+    position: relative;
+  }
+  .flow-actors {
+    display: flex; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .flow-actor-col {
+    display: flex; flex-direction: column; align-items: center;
+    width: 120px;
+  }
+  .flow-actor-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; margin-bottom: 8px;
+    transition: all 0.4s;
+    border: var(--sketch-border) !important;
+    background: #fff !important;
+  }
+  .flow-actor-col.active .flow-actor-icon { animation: pulse 1s infinite; box-shadow: 3px 3px 0 #1e1e1e; }
+  .flow-actor-label { font-weight: 700; font-size: 13px; text-align: center; font-family: var(--body); }
+  .flow-actor-sub { font-size: 11px; color: var(--text-dim); text-align: center; font-family: var(--body); }
+
+  .flow-steps {
+    background: #fff;
+    border-radius: var(--radius);
+    border: var(--sketch-border);
+    padding: 24px;
+    min-height: 200px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .flow-step {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 17px;
+    opacity: 0; transform: translateX(-20px);
+    transition: all 0.5s ease;
+    background: #fff;
+    font-family: var(--body);
+  }
+  .flow-step.visible { opacity: 1; transform: translateX(0); }
+  .flow-step.current { background: #f3f0ff; border: 1px dashed var(--accent); }
+  .flow-step .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+    background: #f1f3f5; color: var(--text-dim);
+    border: 1px solid #ccc;
+  }
+  .flow-step.visible .step-num { background: var(--accent); color: white; border-color: var(--accent); }
+  .flow-step .step-arrow { color: var(--text-dim); font-family: var(--body); font-size: 12px; flex-shrink: 0; }
+  .flow-step .step-desc { flex: 1; }
+  .flow-step .step-channel {
+    font-size: 11px; padding: 3px 8px;
+    border-radius: var(--radius); font-weight: 600; flex-shrink: 0;
+    border: 1px solid;
+  }
+  .flow-step .step-channel.front { background: #fff3e0; color: var(--orange); border-color: var(--orange); }
+  .flow-step .step-channel.back { background: #e8f5e9; color: var(--green); border-color: var(--green); }
+
+  .flow-controls { display: flex; gap: 12px; margin-top: 20px; justify-content: center; }
+  .flow-progress {
+    width: 100%; height: 4px; background: #e9ecef;
+    border-radius: 2px; margin-top: 16px; overflow: hidden;
+    border: 1px solid #ccc;
+  }
+  .flow-progress-bar {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px; transition: width 0.5s ease;
+  }
+
+  /* ── QUIZ ── */
+  .quiz-container { max-width: 70vw; width: 100%; }
+  .quiz-question {
+    font-size: clamp(24px, 2.5vw, 38px); font-weight: 700; font-family: var(--body);
+    margin-bottom: 24px; text-align: center; line-height: 1.4;
+  }
+  .quiz-options { display: flex; flex-direction: column; gap: 12px; }
+  .quiz-option {
+    padding: 18px 24px;
+    background: #fff;
+    border: var(--sketch-border);
+    border-radius: var(--radius);
+    font-size: 19px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--body);
+  }
+  .quiz-option:hover { border-color: var(--accent); box-shadow: 3px 3px 0 #1e1e1e; transform: translateY(-1px); }
+  .quiz-option.correct { border-color: var(--green); background: #f0fff4; }
+  .quiz-option.wrong { border-color: var(--red); background: #fff5f5; animation: shake 0.4s ease; }
+  .quiz-option .opt-letter {
+    width: 32px; height: 32px; border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    background: #f1f3f5; flex-shrink: 0;
+    border: 1px solid #ccc;
+    font-family: var(--body);
+  }
+  .quiz-option.correct .opt-letter { background: var(--green); color: white; border-color: var(--green); }
+  .quiz-option.wrong .opt-letter { background: var(--red); color: white; border-color: var(--red); }
+  .quiz-feedback {
+    margin-top: 20px; padding: 16px 20px;
+    border-radius: var(--radius); font-size: 15px;
+    display: none; text-align: center; line-height: 1.5;
+    font-family: var(--body);
+    border: var(--sketch-border);
+  }
+  .quiz-feedback.show { display: block; animation: popIn 0.3s ease; }
+  .quiz-feedback.correct-fb { background: #f0fff4; border-color: var(--green); }
+  .quiz-feedback.wrong-fb { background: #fff5f5; border-color: var(--red); }
+
+  /* ── EMOJI RAIN ── */
+  .emoji-rain {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 200; overflow: hidden;
+  }
+  .emoji-drop {
+    position: absolute; top: -40px;
+    font-size: 32px;
+    animation: rainEmoji 3s linear forwards;
+  }
+
+  /* ── FOOTER ── */
+  .key-insight {
+    margin-top: 28px;
+    max-width: 70vw;
+    padding: 18px 24px;
+    background: #f3f0ff;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius);
+    font-size: 18px;
+    text-align: center;
+    color: var(--accent);
+    line-height: 1.5;
+    font-family: var(--body);
+    transform: rotate(-0.3deg);
+  }
+
+  /* ── COMPONENT DIAGRAM ── */
+  .comp-diagram {
+    width: 100%; max-width: 85vw;
+    position: relative;
+  }
+  .comp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 60px 120px;
+    margin-bottom: 16px;
+  }
+  .comp-box {
+    background: #fff;
+    border: var(--sketch-border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.4s;
+    position: relative;
+    z-index: 2;
+  }
+  .comp-box:nth-child(1) { transform: rotate(-0.5deg); }
+  .comp-box:nth-child(2) { transform: rotate(0.4deg); }
+  .comp-box:nth-child(3) { transform: rotate(0.6deg); }
+  .comp-box:nth-child(4) { transform: rotate(-0.3deg); }
+  .comp-box:hover { transform: translateY(-2px); box-shadow: 4px 4px 0 #1e1e1e; }
+  .comp-box.active-comp { border-color: var(--accent) !important; box-shadow: 4px 4px 0 var(--accent); }
+  .comp-box .comp-icon { font-size: 28px; margin-bottom: 6px; }
+  .comp-box .comp-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; font-family: var(--body); }
+  .comp-box .comp-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 0; font-family: var(--body); }
+  .comp-box .comp-tags {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px;
+  }
+  .comp-box .comp-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: var(--radius);
+    background: #f1f3f5; color: var(--text-dim);
+    font-family: var(--body);
+    border: 1px solid #dee2e6;
+  }
+  .comp-box .comp-hint {
+    font-size: 11px; color: var(--text-dim); margin-top: 8px; opacity: 0.6;
+    font-style: italic; font-family: var(--body);
+  }
+
+  .comp-svg-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1; pointer-events: none;
+  }
+  .comp-line {
+    stroke-width: 2; fill: none;
+    stroke-dasharray: 6 4;
+    opacity: 0.4;
+    cursor: pointer;
+    pointer-events: stroke;
+    transition: all 0.3s;
+  }
+  .comp-line:hover, .comp-line.active-line {
+    opacity: 1; stroke-width: 3;
+    stroke-dasharray: none;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+  .comp-line-label {
+    font-size: 11px; font-weight: 600;
+    font-family: var(--body);
+    pointer-events: auto; cursor: pointer;
+    transition: opacity 0.3s;
+  }
+  .comp-line-label:hover { opacity: 1 !important; }
+
+  .comp-info-panel {
+    background: #fff;
+    border: var(--sketch-border);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    min-height: 100px;
+    transition: all 0.4s;
+    animation: fadeIn 0.3s ease;
+    position: relative; z-index: 2;
+    box-shadow: 3px 3px 0 #1e1e1e;
+  }
+  .comp-info-panel .info-title {
+    font-weight: 700; font-size: 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--body);
+  }
+  .comp-info-panel .info-body {
+    font-size: 14px; color: var(--text-dim); line-height: 1.6;
+    font-family: var(--body);
+  }
+  .comp-info-panel .info-body code {
+    font-size: 13px; background: #f1f3f5;
+    padding: 2px 6px; border-radius: var(--radius); color: var(--accent2);
+    border: 1px solid #dee2e6;
+  }
+  .comp-legend {
+    display: flex; gap: 20px; justify-content: center;
+    margin-bottom: 16px; font-size: 12px; color: var(--text-dim);
+  }
+  .comp-legend span {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .comp-legend .leg-line {
+    width: 24px; height: 3px; border-radius: 2px;
+  }
+
+  /* ── ATTACK DIAGRAM ── */
+  .attack-flow {
+    max-width: 85vw; width: 100%;
+    position: relative;
+  }
+  .attack-nodes {
+    display: flex; justify-content: space-around; align-items: flex-start;
+    flex-wrap: wrap; gap: 16px;
+    margin-bottom: 20px;
+  }
+  .attack-node {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; width: 110px;
+    opacity: 0; transition: all 0.5s ease;
+  }
+  .attack-node.visible { opacity: 1; }
+  .attack-node-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; margin-bottom: 8px;
+    border: var(--sketch-border) !important;
+    background: #fff !important;
+    transition: all 0.4s;
+  }
+  .attack-node-label { font-weight: 700; font-size: 13px; font-family: var(--body); }
+  .attack-node-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; font-family: var(--body); }
+  .attack-node.hacked .attack-node-icon {
+    border-color: var(--red) !important;
+    animation: shake 0.5s ease, glow-red 1.5s infinite;
+    background: #ffc9c9 !important;
+  }
+  @keyframes glow-red { 0%, 100% { box-shadow: 0 0 10px rgba(239,68,68,0.2); } 50% { box-shadow: 0 0 25px rgba(239,68,68,0.5); } }
+
+  .attack-timeline {
+    background: #fff;
+    border-radius: var(--radius);
+    border: var(--sketch-border);
+    padding: 24px;
+    min-height: 180px;
+  }
+  .attack-step {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    font-size: 17px;
+    margin-bottom: 8px;
+    opacity: 0; transform: translateX(-20px);
+    transition: all 0.5s ease;
+    background: #fff;
+    font-family: var(--body);
+  }
+  .attack-step.visible { opacity: 1; transform: translateX(0); }
+  .attack-step.current { border: 1px dashed var(--accent); background: #f3f0ff; }
+  .attack-step.danger { background: #fff5f5; border: 1px solid var(--red); }
+  .attack-step.safe { background: #f0fff4; border: 1px solid var(--green); }
+  .attack-step .step-icon { font-size: 20px; flex-shrink: 0; }
+  .attack-step .step-text { flex: 1; line-height: 1.4; }
+  .attack-step .step-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: var(--radius);
+    font-weight: 700; flex-shrink: 0; text-transform: uppercase;
+    border: 1px solid;
+    font-family: var(--body);
+  }
+  .attack-step .step-tag.bad { background: #ffc9c9; color: var(--red); border-color: var(--red); }
+  .attack-step .step-tag.good { background: #b2f2bb; color: var(--green); border-color: var(--green); }
+  .attack-step .step-tag.warn { background: #fff3e0; color: var(--orange); border-color: var(--orange); }
+  .attack-controls { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .analogy-grid { grid-template-columns: 1fr; }
+    .analogy-vs { transform: rotate(90deg); }
+    .compare-container { grid-template-columns: 1fr; }
+    .apps-grid { grid-template-columns: 1fr 1fr; }
+    .flow-actors { flex-wrap: wrap; justify-content: center; gap: 12px; }
+  }
+
+  /* ── KEYBOARD HINT ── */
+  .keyboard-hint {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: var(--text-dim);
+    background: #fff; padding: 8px 16px; border-radius: var(--radius);
+    z-index: 100;
+    border: 1px solid #dee2e6;
+    font-family: var(--body);
+  }
+  kbd {
+    background: #f1f3f5; padding: 2px 8px; border-radius: var(--radius);
+    font-family: var(--body); font-size: 12px;
+    border: 1px solid #ccc;
+    box-shadow: 1px 1px 0 #ccc;
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-title">OAuth 2.0 &mdash; Інтерактив</div>
+  <div class="nav-steps" id="navDots"></div>
+</nav>
+
+<!-- SCENE 0: INTRO -->
+<section class="scene active" data-scene="0">
+  <div class="scene-title"><span class="gradient-text">OAuth 2.0</span></div>
+  <div class="scene-title" style="font-size:clamp(20px,3vw,32px); margin-bottom: 8px;">Протокол делегування</div>
+  <p class="scene-subtitle">
+    Як дати додатку доступ до ваших даних,<br><strong>не передаючи свій пароль</strong>
+  </p>
+  <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+    <button class="btn btn-primary" onclick="goTo(1)">Почати</button>
+  </div>
+  <div class="key-insight" style="margin-top:48px;">
+    Використовуйте <kbd>&larr;</kbd> <kbd>&rarr;</kbd> стрілки або кнопки для навігації
+  </div>
+</section>
+
+<!-- SCENE 1: REAL-WORLD ANALOGY -->
+<section class="scene" data-scene="1">
+  <div class="scene-title" style="font-size:clamp(34px, 4vw, 56px);">Аналогія з готелем</div>
+  <p class="scene-subtitle">Уявіть OAuth як готель і додаток для обслуговування номерів</p>
+
+  <div class="analogy-grid">
+    <div class="analogy-card bad" style="animation: slideInLeft 0.6s ease 0.2s both;">
+      <span class="analogy-icon">&#x1F6AA;</span>
+      <div class="analogy-label" style="color: var(--red);">Без OAuth</div>
+      <div class="analogy-desc">
+        Ви даєте <strong>додатку обслуговування</strong> свій <strong>головний ключ від номера</strong>.<br><br>
+        Він може зайти в кімнату, відкрити сейф, використати мінібар, забрати ваші речі...
+      </div>
+    </div>
+
+    <div class="analogy-vs">VS</div>
+
+    <div class="analogy-card good" style="animation: slideInRight 0.6s ease 0.4s both;">
+      <span class="analogy-icon">&#x1F3E8;</span>
+      <div class="analogy-label" style="color: var(--green);">З OAuth</div>
+      <div class="analogy-desc">
+        Ви просите <strong>рецепцію</strong> видати <strong>обмежену картку</strong>.<br><br>
+        Вона відкриває лише двері, лише на 2 години, і ви можете скасувати її будь-коли.
+      </div>
+    </div>
+  </div>
+
+  <div class="key-insight">
+    <strong>OAuth = рецепція готелю.</strong> Видає обмежений, відкликний доступ від вашого імені.
+  </div>
+</section>
+
+<!-- SCENE 2: THE PROBLEM -->
+<section class="scene" data-scene="2">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Проблема: передача пароля</div>
+  <p class="scene-subtitle">Максим створив <strong>SecureNotes</strong>. PrintApp хоче надрукувати його нотатки.</p>
+
+  <div class="password-demo" id="passwordDemo">
+    <h3>&#x1F5A8; Вхід у PrintApp</h3>
+    <p style="font-size:14px; color:var(--text-dim); margin-bottom:20px;">Введіть облікові дані SecureNotes для друку нотаток</p>
+    <div class="input-group">
+      <label>Логін SecureNotes</label>
+      <input type="text" id="demoUser" value="" readonly>
+    </div>
+    <div class="input-group">
+      <label>Пароль SecureNotes</label>
+      <input type="password" id="demoPass" value="" readonly>
+    </div>
+    <button class="btn btn-danger" style="width:100%; justify-content:center; margin-top:8px;" onclick="showPasswordProblem()">
+      Увійти в PrintApp
+    </button>
+    <div id="passwordWarning" style="display:none; margin-top:16px; padding:14px; background:#fff5f5; border-radius:var(--radius); border: 2px solid var(--red);">
+    </div>
+  </div>
+
+  <div class="key-insight" id="passwordInsight" style="display:none;">
+    <strong>Це Password Anti-Pattern.</strong> PrintApp тепер має повний доступ до всього акаунту Максима.
+  </div>
+</section>
+
+<!-- SCENE 3: ATTACK FLOW WITHOUT OAUTH -->
+<section class="scene" data-scene="3">
+  <div class="scene-title" style="font-size:clamp(30px, 3.5vw, 52px);">Без OAuth: анатомія зламу</div>
+  <p class="scene-subtitle">Натискайте <strong>&laquo;Наступний крок&raquo;</strong>, щоб побачити, як хакер отримує доступ</p>
+
+  <div class="attack-flow">
+    <div class="attack-nodes" id="attackNodes">
+      <div class="attack-node visible" id="atkNode0">
+        <div class="attack-node-icon" style="border-color:var(--blue);">&#x1F464;</div>
+        <div class="attack-node-label">Максим</div>
+        <div class="attack-node-sub">Користувач</div>
+      </div>
+      <div class="attack-node visible" id="atkNode1">
+        <div class="attack-node-icon" style="border-color:var(--pink);">&#x1F5A8;</div>
+        <div class="attack-node-label">PrintApp</div>
+        <div class="attack-node-sub">Сторонній додаток</div>
+      </div>
+      <div class="attack-node visible" id="atkNode2">
+        <div class="attack-node-icon" style="border-color:var(--green);">&#x1F4BE;</div>
+        <div class="attack-node-label">SecureNotes</div>
+        <div class="attack-node-sub">API + БД</div>
+      </div>
+      <div class="attack-node visible" id="atkNode3">
+        <div class="attack-node-icon" style="border-color:var(--red);">&#x1F47F;</div>
+        <div class="attack-node-label">Хакер</div>
+        <div class="attack-node-sub">Зловмисник</div>
+      </div>
+    </div>
+
+    <div class="attack-timeline" id="attackTimeline">
+      <div class="attack-step" data-atk="0">
+        <span class="step-icon">&#x1F511;</span>
+        <span class="step-text">Максим передає <strong>логін і пароль</strong> від SecureNotes додатку PrintApp</span>
+        <span class="step-tag warn">пароль</span>
+      </div>
+      <div class="attack-step" data-atk="1">
+        <span class="step-icon">&#x1F4BE;</span>
+        <span class="step-text">PrintApp <strong>зберігає пароль</strong> у своїй базі даних (в чистому вигляді або погано зашифрований)</span>
+        <span class="step-tag warn">зберігання</span>
+      </div>
+      <div class="attack-step" data-atk="2">
+        <span class="step-icon">&#x1F4E1;</span>
+        <span class="step-text">PrintApp використовує пароль для запитів до SecureNotes API &mdash; <strong>повний доступ</strong></span>
+        <span class="step-tag bad">повний доступ</span>
+      </div>
+      <div class="attack-step" data-atk="3">
+        <span class="step-icon">&#x1F4A5;</span>
+        <span class="step-text">Хакер знаходить вразливість у PrintApp і <strong>зламує базу даних</strong></span>
+        <span class="step-tag bad">breach!</span>
+      </div>
+      <div class="attack-step" data-atk="4">
+        <span class="step-icon">&#x1F47F;</span>
+        <span class="step-text">Хакер витягує <strong>паролі всіх користувачів</strong> PrintApp з бази &mdash; включно з паролем Максима</span>
+        <span class="step-tag bad">витік</span>
+      </div>
+      <div class="attack-step danger" data-atk="5">
+        <span class="step-icon">&#x1F525;</span>
+        <span class="step-text">Хакер входить у SecureNotes як Максим: <strong>читає, видаляє, змінює пароль</strong> &mdash; повний контроль</span>
+        <span class="step-tag bad">game over</span>
+      </div>
+      <div class="attack-step danger" data-atk="6">
+        <span class="step-icon">&#x1F30D;</span>
+        <span class="step-text">Той самий пароль &mdash; у Gmail, GitHub, банку? <strong>Зламані всі акаунти.</strong></span>
+        <span class="step-tag bad">каскад</span>
+      </div>
+    </div>
+
+    <div class="flow-progress"><div class="flow-progress-bar" id="atkProgressBar" style="width:0%"></div></div>
+    <div class="attack-controls">
+      <button class="btn btn-outline" onclick="atkPrev()" id="atkPrevBtn" disabled>Назад</button>
+      <button class="btn btn-danger" onclick="atkNext()" id="atkNextBtn">Наступний крок</button>
+      <button class="btn btn-outline" onclick="atkReset()">Скинути</button>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 4: SAFE FLOW WITH OAUTH -->
+<section class="scene" data-scene="4">
+  <div class="scene-title" style="font-size:clamp(30px, 3.5vw, 52px);">З OAuth: той самий злам, інший результат</div>
+  <p class="scene-subtitle">Хакер зламав PrintApp, але... що він отримав?</p>
+
+  <div class="attack-flow">
+    <div class="attack-nodes" id="safeNodes">
+      <div class="attack-node visible">
+        <div class="attack-node-icon" style="border-color:var(--blue);">&#x1F464;</div>
+        <div class="attack-node-label">Максим</div>
+        <div class="attack-node-sub">Користувач</div>
+      </div>
+      <div class="attack-node visible">
+        <div class="attack-node-icon" style="border-color:var(--pink);">&#x1F5A8;</div>
+        <div class="attack-node-label">PrintApp</div>
+        <div class="attack-node-sub">Client</div>
+      </div>
+      <div class="attack-node visible">
+        <div class="attack-node-icon" style="border-color:var(--accent2);">&#x1F510;</div>
+        <div class="attack-node-label">Auth Server</div>
+        <div class="attack-node-sub">Сервер авторизації</div>
+      </div>
+      <div class="attack-node visible">
+        <div class="attack-node-icon" style="border-color:var(--green);">&#x1F4BE;</div>
+        <div class="attack-node-label">SecureNotes</div>
+        <div class="attack-node-sub">API</div>
+      </div>
+      <div class="attack-node visible" id="safeHacker">
+        <div class="attack-node-icon" style="border-color:var(--red);">&#x1F47F;</div>
+        <div class="attack-node-label">Хакер</div>
+        <div class="attack-node-sub">Зловмисник</div>
+      </div>
+    </div>
+
+    <div class="attack-timeline" id="safeTimeline">
+      <div class="attack-step" data-safe="0">
+        <span class="step-icon">&#x1F510;</span>
+        <span class="step-text">Максим авторизує PrintApp через <strong>Auth Server</strong> &mdash; пароль вводиться ТІЛЬКИ на SecureNotes</span>
+        <span class="step-tag good">безпечно</span>
+      </div>
+      <div class="attack-step" data-safe="1">
+        <span class="step-icon">&#x1F3AB;</span>
+        <span class="step-text">PrintApp отримує <strong>access token</strong> (scope: notes:read, exp: 1 година)</span>
+        <span class="step-tag good">обмежений</span>
+      </div>
+      <div class="attack-step" data-safe="2">
+        <span class="step-icon">&#x1F4E1;</span>
+        <span class="step-text">PrintApp використовує токен для читання нотаток &mdash; <strong>тільки читання, нічого більше</strong></span>
+        <span class="step-tag good">scope</span>
+      </div>
+      <div class="attack-step" data-safe="3">
+        <span class="step-icon">&#x1F4A5;</span>
+        <span class="step-text">Хакер зламує PrintApp і витягує базу &mdash; <strong>паролів немає!</strong></span>
+        <span class="step-tag warn">breach</span>
+      </div>
+      <div class="attack-step" data-safe="4">
+        <span class="step-icon">&#x1F914;</span>
+        <span class="step-text">Хакер знайшов access token, але: scope=<code>notes:read</code>, <strong>закінчується через 47 хвилин</strong></span>
+        <span class="step-tag warn">обмежений</span>
+      </div>
+      <div class="attack-step safe" data-safe="5">
+        <span class="step-icon">&#x1F6E1;</span>
+        <span class="step-text">Максим дізнається про злам і натискає <strong>&laquo;Відкликати доступ PrintApp&raquo;</strong> &mdash; токен миттєво недійсний</span>
+        <span class="step-tag good">відкликано</span>
+      </div>
+      <div class="attack-step safe" data-safe="6">
+        <span class="step-icon">&#x2705;</span>
+        <span class="step-text"><strong>Пароль не скомпрометований.</strong> Інші акаунти в безпеці. Інші додатки працюють.</span>
+        <span class="step-tag good">безпечно</span>
+      </div>
+    </div>
+
+    <div class="flow-progress"><div class="flow-progress-bar" id="safeProgressBar" style="width:0%"></div></div>
+    <div class="attack-controls">
+      <button class="btn btn-outline" onclick="safePrev()" id="safePrevBtn" disabled>Назад</button>
+      <button class="btn btn-success" onclick="safeNext()" id="safeNextBtn">Наступний крок</button>
+      <button class="btn btn-outline" onclick="safeReset()">Скинути</button>
+    </div>
+  </div>
+
+  <div class="key-insight" id="safeInsight" style="display:none;">
+    Той самий злам PrintApp. <strong>Без OAuth</strong> &mdash; повна катастрофа. <strong>З OAuth</strong> &mdash; мінімальний вплив.
+  </div>
+</section>
+
+<!-- SCENE 5: WHY IT'S BAD (5 problems) -->
+<section class="scene" data-scene="5">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">5 причин, чому це жахливо</div>
+  <p class="scene-subtitle">Кожна причина, чому передача пароля руйнує безпеку</p>
+
+  <div style="max-width:80vw; width:100%; display:flex; flex-direction:column; gap:16px;" id="problemsList">
+    <div class="card" style="display:flex; align-items:flex-start; gap:16px; opacity:0; transform:translateY(20px); transition:all 0.5s ease;">
+      <span style="font-size:clamp(34px, 4vw, 56px);">&#x1F513;</span>
+      <div>
+        <div style="font-weight:700; margin-bottom:4px;">Повний доступ</div>
+        <div style="color:var(--text-dim); font-size:16px;">PrintApp потрібне лише читання нотаток, але він отримує доступ до <em>всього</em> &mdash; видалення, зміна пароля, приватні дані</div>
+      </div>
+    </div>
+    <div class="card" style="display:flex; align-items:flex-start; gap:16px; opacity:0; transform:translateY(20px); transition:all 0.5s ease;">
+      <span style="font-size:clamp(34px, 4vw, 56px);">&#x1F4A3;</span>
+      <div>
+        <div style="font-weight:700; margin-bottom:4px;">Неможливість вибіркового відкликання</div>
+        <div style="color:var(--text-dim); font-size:14px;">Щоб забрати доступ у PrintApp, Максим мусить змінити пароль &mdash; а це зламає доступ УСІМ підключеним додаткам</div>
+      </div>
+    </div>
+    <div class="card" style="display:flex; align-items:flex-start; gap:16px; opacity:0; transform:translateY(20px); transition:all 0.5s ease;">
+      <span style="font-size:clamp(34px, 4vw, 56px);">&#x1F4E2;</span>
+      <div>
+        <div style="font-weight:700; margin-bottom:4px;">Поширення пароля</div>
+        <div style="color:var(--text-dim); font-size:14px;">Кожен сторонній додаток зберігає пароль. Зламали ОДИН &mdash; скомпрометовано весь акаунт</div>
+      </div>
+    </div>
+    <div class="card" style="display:flex; align-items:flex-start; gap:16px; opacity:0; transform:translateY(20px); transition:all 0.5s ease;">
+      <span style="font-size:clamp(34px, 4vw, 56px);">&#x1F575;</span>
+      <div>
+        <div style="font-weight:700; margin-bottom:4px;">Відсутність аудиту</div>
+        <div style="color:var(--text-dim); font-size:14px;">SecureNotes не може відрізнити запити Максима від запитів PrintApp &mdash; обидва використовують ті самі облікові дані</div>
+      </div>
+    </div>
+    <div class="card" style="display:flex; align-items:flex-start; gap:16px; opacity:0; transform:translateY(20px); transition:all 0.5s ease;">
+      <span style="font-size:clamp(34px, 4vw, 56px);">&#x26A0;&#xFE0F;</span>
+      <div>
+        <div style="font-weight:700; margin-bottom:4px;">Порушення принципу найменших привілеїв</div>
+        <div style="color:var(--text-dim); font-size:14px;">Фундаментальний принцип безпеки порушено &mdash; додатки повинні отримувати мінімум дозволів, необхідних для роботи</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 6: THE FOUR ROLES -->
+<section class="scene" data-scene="6">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Знайомтесь: 4 ролі</div>
+  <p class="scene-subtitle">OAuth 2.0 розділяє відповідальність на <strong>4 ролі</strong>. Натисніть на кожну, щоб дізнатися більше.</p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; max-width:80vw; width:100%;">
+    <div class="card" style="cursor:pointer; text-align:center; transition:all 0.3s;" onclick="highlightRole(this, 0)" id="role0">
+      <div style="font-size:48px; margin-bottom:12px;">&#x1F464;</div>
+      <div style="font-weight:700; font-size:18px; color:var(--blue);">Resource Owner</div>
+      <div style="font-size:14px; color:var(--text-dim); margin-top:6px;">Максим</div>
+      <div class="role-detail" style="display:none; margin-top:12px; font-size:14px; color:var(--text); text-align:left; line-height:1.5;">
+        <strong>Користувач</strong>, який володіє даними. Максим &mdash; власник нотаток. Він вирішує, хто отримає доступ, натискаючи "Дозволити" на екрані згоди. Він ніколи не передає свій пароль.
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer; text-align:center; transition:all 0.3s;" onclick="highlightRole(this, 1)" id="role1">
+      <div style="font-size:48px; margin-bottom:12px;">&#x1F5A8;</div>
+      <div style="font-weight:700; font-size:18px; color:var(--pink);">Client</div>
+      <div style="font-size:14px; color:var(--text-dim); margin-top:6px;">PrintApp</div>
+      <div class="role-detail" style="display:none; margin-top:12px; font-size:14px; color:var(--text); text-align:left; line-height:1.5;">
+        <strong>Сторонній додаток</strong>, який хоче отримати доступ. PrintApp хоче читати нотатки для друку. Він ніколи не бачить пароль користувача &mdash; натомість отримує обмежений токен.
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer; text-align:center; transition:all 0.3s;" onclick="highlightRole(this, 2)" id="role2">
+      <div style="font-size:48px; margin-bottom:12px;">&#x1F510;</div>
+      <div style="font-weight:700; font-size:18px; color:var(--accent2);">Authorization Server</div>
+      <div style="font-size:14px; color:var(--text-dim); margin-top:6px;">SecureNotes Auth</div>
+      <div class="role-detail" style="display:none; margin-top:12px; font-size:14px; color:var(--text); text-align:left; line-height:1.5;">
+        <strong>Охоронець / рецепція.</strong> Перевіряє особу Максима, показує екран згоди та видає токени. Це центр довіри, який робить всю систему безпечною.
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer; text-align:center; transition:all 0.3s;" onclick="highlightRole(this, 3)" id="role3">
+      <div style="font-size:48px; margin-bottom:12px;">&#x1F4BE;</div>
+      <div style="font-weight:700; font-size:18px; color:var(--green);">Resource Server</div>
+      <div style="font-size:14px; color:var(--text-dim); margin-top:6px;">SecureNotes API</div>
+      <div class="role-detail" style="display:none; margin-top:12px; font-size:14px; color:var(--text); text-align:left; line-height:1.5;">
+        <strong>Сховище</strong>, де зберігаються дані. Перевіряє кожен вхідний токен &mdash; чи він дійсний? Чи не закінчився? Чи має потрібний scope? Тільки тоді повертає нотатки.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 7: CONSENT SCREEN SIMULATION -->
+<section class="scene" data-scene="7">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Екран згоди (Consent Screen)</div>
+  <p class="scene-subtitle">Ось що бачить Максим замість того, щоб передавати свій пароль</p>
+
+  <div class="consent-modal" id="consentModal">
+    <div class="consent-header">
+      <div class="consent-app-icon" style="background:#f8f9fa; border:2px solid #1e1e1e; border-radius:var(--radius);">&#x1F5A8;</div>
+      <div>
+        <div class="consent-app-name">PrintApp</div>
+        <div class="consent-app-url">printapp.example</div>
+      </div>
+    </div>
+    <div class="consent-text">
+      <strong>PrintApp</strong> хоче отримати доступ до вашого акаунту <strong>SecureNotes</strong>:
+    </div>
+    <ul class="consent-perms" id="consentPerms">
+      <li class="granted">
+        <span class="perm-icon">&#x2705;</span>
+        <span><strong>Читати ваші нотатки</strong> &mdash; переглядати назви та вміст</span>
+      </li>
+      <li class="granted">
+        <span class="perm-icon">&#x2705;</span>
+        <span><strong>Читати ваш профіль</strong> &mdash; переглядати ваше ім'я</span>
+      </li>
+    </ul>
+    <div style="background:#f1f3f5; border:1px dashed #ccc; border-radius:var(--radius); padding:10px 14px; margin-bottom:20px; font-size:13px; color:var(--text-dim); font-family:var(--body);">
+      &#x1F6E1; PrintApp <strong>НЕ ЗМОЖЕ</strong>: видаляти нотатки, змінювати пароль, керувати спільним доступом.
+    </div>
+    <div class="consent-btns">
+      <button class="btn btn-outline" onclick="denyConsent()">Відхилити</button>
+      <button class="btn btn-success" id="allowBtn" onclick="allowConsent()">Дозволити</button>
+    </div>
+    <div id="consentResult" style="display:none; margin-top:16px; text-align:center; font-size:15px; padding:12px; border-radius:10px;"></div>
+  </div>
+</section>
+
+<!-- SCENE 8: FULL FLOW ANIMATION -->
+<section class="scene" data-scene="8">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Танець OAuth</div>
+  <p class="scene-subtitle">Спостерігайте за повним Authorization Code Flow, крок за кроком</p>
+
+  <div class="full-flow">
+    <div class="flow-actors">
+      <div class="flow-actor-col" id="flowActor0">
+        <div class="flow-actor-icon" style="border-color:var(--blue);">&#x1F464;</div>
+        <div class="flow-actor-label">Максим</div>
+        <div class="flow-actor-sub">Resource Owner</div>
+      </div>
+      <div class="flow-actor-col" id="flowActor1">
+        <div class="flow-actor-icon" style="border-color:var(--pink);">&#x1F5A8;</div>
+        <div class="flow-actor-label">PrintApp</div>
+        <div class="flow-actor-sub">Client</div>
+      </div>
+      <div class="flow-actor-col" id="flowActor2">
+        <div class="flow-actor-icon" style="border-color:var(--accent2);">&#x1F510;</div>
+        <div class="flow-actor-label">Auth Server</div>
+        <div class="flow-actor-sub">Сервер авторизації</div>
+      </div>
+      <div class="flow-actor-col" id="flowActor3">
+        <div class="flow-actor-icon" style="border-color:var(--green);">&#x1F4BE;</div>
+        <div class="flow-actor-label">API</div>
+        <div class="flow-actor-sub">Сервер ресурсів</div>
+      </div>
+    </div>
+
+    <div class="flow-steps" id="flowSteps">
+      <div class="flow-step" data-actors="0,1">
+        <div class="step-num">1</div>
+        <div class="step-arrow">Власник &rarr; Клієнт</div>
+        <div class="step-desc">Максим натискає <strong>&laquo;Надрукувати нотатки&raquo;</strong> у PrintApp</div>
+        <div class="step-channel front">браузер</div>
+      </div>
+      <div class="flow-step" data-actors="1,2">
+        <div class="step-num">2</div>
+        <div class="step-arrow">Клієнт &rarr; Auth</div>
+        <div class="step-desc">PrintApp перенаправляє Максима на <code>/authorize?scope=notes:read</code></div>
+        <div class="step-channel front">браузер</div>
+      </div>
+      <div class="flow-step" data-actors="0,2">
+        <div class="step-num">3</div>
+        <div class="step-arrow">Власник &harr; Auth</div>
+        <div class="step-desc">Максим входить в акаунт і бачить <strong>екран згоди</strong></div>
+        <div class="step-channel front">браузер</div>
+      </div>
+      <div class="flow-step" data-actors="0,2">
+        <div class="step-num">4</div>
+        <div class="step-arrow">Власник &rarr; Auth</div>
+        <div class="step-desc">Максим натискає <strong>&laquo;Дозволити&raquo;</strong> &mdash; надає scope <code>notes:read</code></div>
+        <div class="step-channel front">браузер</div>
+      </div>
+      <div class="flow-step" data-actors="2,1">
+        <div class="step-num">5</div>
+        <div class="step-arrow">Auth &rarr; Клієнт</div>
+        <div class="step-desc">Auth Server перенаправляє назад з <strong>authorization code</strong> (одноразовий, короткоживучий)</div>
+        <div class="step-channel front">браузер</div>
+      </div>
+      <div class="flow-step" data-actors="1,2">
+        <div class="step-num">6</div>
+        <div class="step-arrow">Клієнт &rarr; Auth</div>
+        <div class="step-desc">PrintApp обмінює code + <code>client_secret</code> на <strong>access token</strong></div>
+        <div class="step-channel back">сервер-сервер</div>
+      </div>
+      <div class="flow-step" data-actors="1,3">
+        <div class="step-num">7</div>
+        <div class="step-arrow">Клієнт &rarr; API</div>
+        <div class="step-desc">PrintApp викликає <code>GET /api/notes</code> з <strong>Bearer token</strong></div>
+        <div class="step-channel back">сервер-сервер</div>
+      </div>
+      <div class="flow-step" data-actors="3,1">
+        <div class="step-num">8</div>
+        <div class="step-arrow">API &rarr; Клієнт</div>
+        <div class="step-desc">SecureNotes API перевіряє токен і повертає <strong>дані нотаток</strong></div>
+        <div class="step-channel back">сервер-сервер</div>
+      </div>
+    </div>
+
+    <div class="flow-progress"><div class="flow-progress-bar" id="flowProgressBar" style="width:0%"></div></div>
+    <div class="flow-controls">
+      <button class="btn btn-outline" onclick="flowPrev()" id="flowPrevBtn" disabled>Назад</button>
+      <button class="btn btn-primary" onclick="flowNext()" id="flowNextBtn">Наступний крок</button>
+      <button class="btn btn-outline" onclick="flowReset()">Скинути</button>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 9: TOKEN -->
+<section class="scene" data-scene="9">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Access Token</div>
+  <p class="scene-subtitle">Ось що PrintApp отримує замість пароля Максима</p>
+
+  <div class="token-card">
+    <div class="token-header">&#x1F3AB; Access Token (JWT)</div>
+    <div class="token-part header-part">eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9</div>
+    <div style="color:var(--text-dim);">.</div>
+    <div class="token-part payload-part">eyJzdWIiOiJtYWtzeW0iLCJzY29wZSI6Im5vdGVzOnJlYWQiLCJleHAiOjE3MDk1fQ</div>
+    <div style="color:var(--text-dim);">.</div>
+    <div class="token-part sig-part">kP3s9fJ2xYmN7qRtUvWbCdEfGhIjKlMnOpQrStUv</div>
+
+    <div class="token-decoded" id="tokenDecoded">
+      <div style="margin-bottom:8px; font-weight:700; font-family:'Inter',sans-serif; color:var(--text);">&#x1F50D; Розкодований payload:</div>
+      <div>{</div>
+      <div>&nbsp;&nbsp;"sub": "<span style="color:var(--blue)">maksym</span>",</div>
+      <div>&nbsp;&nbsp;"client_id": "<span style="color:var(--pink)">pa_7f3a2b1c9d4e</span>",</div>
+      <div>&nbsp;&nbsp;"scope": "<span style="color:var(--green)">notes:read</span>",</div>
+      <div>&nbsp;&nbsp;"exp": <span style="color:var(--orange)">1709510400</span>,</div>
+      <div>&nbsp;&nbsp;"iss": "<span style="color:var(--accent2)">securenotes.example</span>"</div>
+      <div>}</div>
+    </div>
+  </div>
+  <button class="btn btn-primary" style="margin-top:20px;" onclick="decodeToken()">Розкодувати токен</button>
+
+  <div class="key-insight" id="tokenInsight" style="display:none;">
+    <strong>Обмежений scope</strong> (лише notes:read), <strong>обмежений час</strong> (закінчується), <strong>конкретний клієнт</strong> (PrintApp), <strong>підписаний</strong> (неможливо підробити)
+  </div>
+</section>
+
+<!-- SCENE 10: REVOCATION -->
+<section class="scene" data-scene="10">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Відкликання доступу</div>
+  <p class="scene-subtitle">На відміну від передачі пароля, Максим може відкликати доступ кожного додатка <strong>окремо</strong></p>
+
+  <div class="apps-grid" id="appsGrid">
+    <div class="app-card connected" id="app0">
+      <span class="app-icon">&#x1F5A8;</span>
+      <div class="app-name">PrintApp</div>
+      <div class="app-scope">notes:read</div>
+      <button class="revoke-btn" onclick="revokeApp(0)">Відкликати</button>
+    </div>
+    <div class="app-card connected" id="app1">
+      <span class="app-icon">&#x2601;</span>
+      <div class="app-name">CloudSync</div>
+      <div class="app-scope">notes:read, notes:write</div>
+      <button class="revoke-btn" onclick="revokeApp(1)">Відкликати</button>
+    </div>
+    <div class="app-card connected" id="app2">
+      <span class="app-icon">&#x1F4CA;</span>
+      <div class="app-name">Analytics</div>
+      <div class="app-scope">stats:read</div>
+      <button class="revoke-btn" onclick="revokeApp(2)">Відкликати</button>
+    </div>
+  </div>
+
+  <div id="revokeMessage" style="display:none; max-width:500px; padding:16px; border-radius:var(--radius); text-align:center; font-size:15px; line-height:1.5; background:#f0fff4; border:2px solid var(--green); font-family:var(--body);"></div>
+
+  <div class="key-insight">
+    З OAuth відкликання доступу одного додатка <strong>не впливає</strong> на інші. Зміна пароля не потрібна.
+  </div>
+</section>
+
+<!-- SCENE 11: COMPARISON -->
+<section class="scene" data-scene="11">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">До та після OAuth</div>
+  <p class="scene-subtitle">Повна картина</p>
+
+  <div class="compare-container">
+    <div class="compare-box bad">
+      <h3><span style="color:var(--red);">&#x274C;</span> Передача пароля</h3>
+      <ul>
+        <li><span class="icon">&#x1F513;</span> Повний доступ до всього акаунту</li>
+        <li><span class="icon">&#x1F4A3;</span> Зміна пароля = зламати всі додатки</li>
+        <li><span class="icon">&#x1F4E2;</span> Пароль зберігається у кожному додатку</li>
+        <li><span class="icon">&#x1F575;</span> Неможливо визначити, хто що зробив</li>
+        <li><span class="icon">&#x23F3;</span> Доступ ніколи не закінчується</li>
+        <li><span class="icon">&#x1F6AB;</span> Жодного гранулярного контролю</li>
+      </ul>
+    </div>
+    <div class="compare-box good">
+      <h3><span style="color:var(--green);">&#x2705;</span> OAuth 2.0</h3>
+      <ul>
+        <li><span class="icon">&#x1F512;</span> Обмежений доступ (лише notes:read)</li>
+        <li><span class="icon">&#x1F504;</span> Відкликання кожного додатка окремо</li>
+        <li><span class="icon">&#x1F510;</span> Пароль залишається на сервері авторизації</li>
+        <li><span class="icon">&#x1F4DD;</span> Кожен додаток ідентифікований через client_id</li>
+        <li><span class="icon">&#x23F0;</span> Токени автоматично закінчуються</li>
+        <li><span class="icon">&#x1F3AF;</span> Точний контроль через scopes</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 12: QUIZ -->
+<section class="scene" data-scene="12">
+  <div class="scene-title" style="font-size:clamp(32px, 4vw, 56px);">Перевірка знань</div>
+  <p class="scene-subtitle">Подивимось, чи ви все зрозуміли</p>
+
+  <div class="quiz-container" id="quizContainer">
+    <!-- Filled by JS -->
+  </div>
+  <div style="margin-top:16px; text-align:center;">
+    <button class="btn btn-outline" id="nextQuizBtn" style="display:none;" onclick="nextQuiz()">Наступне питання</button>
+  </div>
+</section>
+
+<!-- PREV / NEXT BUTTONS -->
+<button class="btn-nav btn-prev" id="globalPrev" onclick="prev()">&larr; Назад</button>
+<button class="btn-nav btn-next" id="globalNext" onclick="next()">Далі &rarr;</button>
+
+<div class="keyboard-hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> для навігації &middot; <kbd>Space</kbd> далі</div>
+
+<!-- EMOJI RAIN CONTAINER -->
+<div class="emoji-rain" id="emojiRain"></div>
+
+<script>
+// ── STATE ──
+let currentScene = 0;
+const totalScenes = document.querySelectorAll('.scene').length;
+
+// ── NAV DOTS ──
+const navDots = document.getElementById('navDots');
+for (let i = 0; i < totalScenes; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => goTo(i);
+  navDots.appendChild(dot);
+}
+
+function updateNav() {
+  document.querySelectorAll('.nav-dot').forEach((d, i) => {
+    d.className = 'nav-dot' + (i === currentScene ? ' active' : i < currentScene ? ' done' : '');
+  });
+  document.getElementById('globalPrev').style.display = currentScene === 0 ? 'none' : 'block';
+  document.getElementById('globalNext').style.display = currentScene === totalScenes - 1 ? 'none' : 'block';
+}
+
+function goTo(n) {
+  if (n < 0 || n >= totalScenes) return;
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  currentScene = n;
+  const scene = document.querySelectorAll('.scene')[n];
+  scene.classList.add('active');
+  updateNav();
+  onEnterScene(n);
+}
+
+function next() { goTo(currentScene + 1); }
+function prev() { goTo(currentScene - 1); }
+
+// Keyboard nav
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+});
+
+// ── SCENE ENTER HOOKS ──
+function onEnterScene(n) {
+  if (n === 2) animatePasswordScene();
+  if (n === 3) atkReset();
+  if (n === 4) safeReset();
+  if (n === 5) animateProblems();
+  if (n === 8) flowReset();
+  if (n === 12) initQuiz();
+}
+
+// ── SCENE 2: PASSWORD DEMO ──
+function animatePasswordScene() {
+  const user = document.getElementById('demoUser');
+  const pass = document.getElementById('demoPass');
+  user.value = '';
+  pass.value = '';
+  document.getElementById('passwordWarning').style.display = 'none';
+  document.getElementById('passwordInsight').style.display = 'none';
+
+  typeInto(user, 'maksym.vytrebenko', 60, () => {
+    typeInto(pass, 'MyS3cretP@ss!', 80);
+  });
+}
+
+function typeInto(input, text, speed, cb) {
+  let i = 0;
+  input.classList.add('typing-anim');
+  const iv = setInterval(() => {
+    input.value = text.substring(0, ++i);
+    if (i >= text.length) {
+      clearInterval(iv);
+      input.classList.remove('typing-anim');
+      if (cb) setTimeout(cb, 300);
+    }
+  }, speed);
+}
+
+function showPasswordProblem() {
+  const w = document.getElementById('passwordWarning');
+  w.style.display = 'block';
+  w.innerHTML = `
+    <div style="font-weight:700; color:var(--red); margin-bottom:8px;">&#x26A0; Катастрофа безпеки!</div>
+    <div style="font-size:14px; color:var(--text); line-height:1.5;">
+      PrintApp тепер має пароль Максима: <code style="color:var(--red);">MyS3cretP@ss!</code><br>
+      Він може читати, редагувати, видаляти нотатки, змінювати профіль, керувати спільним доступом...
+    </div>
+  `;
+  document.getElementById('passwordInsight').style.display = 'block';
+  document.getElementById('passwordInsight').style.animation = 'popIn 0.4s ease';
+}
+
+// ── SCENE 3: PROBLEMS LIST ──
+function animateProblems() {
+  const items = document.querySelectorAll('#problemsList .card');
+  items.forEach((item, i) => {
+    item.style.opacity = '0';
+    item.style.transform = 'translateY(20px)';
+    setTimeout(() => {
+      item.style.opacity = '1';
+      item.style.transform = 'translateY(0)';
+    }, 200 + i * 200);
+  });
+}
+
+// ── SCENE 4: ROLES ──
+function highlightRole(el, idx) {
+  document.querySelectorAll('#role0,#role1,#role2,#role3').forEach(c => {
+    c.style.borderColor = '#1e1e1e';
+    c.querySelector('.role-detail').style.display = 'none';
+  });
+  el.style.borderColor = 'var(--accent)';
+  el.querySelector('.role-detail').style.display = 'block';
+  el.querySelector('.role-detail').style.animation = 'fadeIn 0.4s ease';
+}
+
+// ── SCENE 5: CONSENT ──
+function allowConsent() {
+  const r = document.getElementById('consentResult');
+  r.style.display = 'block';
+  r.style.background = '#f0fff4';
+  r.style.border = '2px solid var(--green)';
+  r.innerHTML = '&#x2705; <strong>Доступ надано!</strong> PrintApp отримав authorization code.<br><span style="font-size:13px; color:var(--text-dim);">Перенаправлення на printapp.example/callback?code=SplxlO...</span>';
+  r.style.animation = 'popIn 0.3s ease';
+  rainEmojis(['&#x2705;', '&#x1F3AB;', '&#x1F510;'], 10);
+}
+
+function denyConsent() {
+  const r = document.getElementById('consentResult');
+  r.style.display = 'block';
+  r.style.background = '#fff5f5';
+  r.style.border = '2px solid var(--red)';
+  r.innerHTML = '&#x274C; <strong>Доступ відхилено.</strong> PrintApp нічого не отримав.<br><span style="font-size:13px; color:var(--text-dim);">Перенаправлення на printapp.example/callback?error=access_denied</span>';
+  r.style.animation = 'popIn 0.3s ease';
+}
+
+// ── SCENE 6: FLOW ANIMATION ──
+let flowStep = -1;
+const flowTotal = 8;
+
+function flowNext() {
+  if (flowStep >= flowTotal - 1) return;
+  flowStep++;
+  updateFlow();
+}
+function flowPrev() {
+  if (flowStep <= 0) return;
+  const steps = document.querySelectorAll('#flowSteps .flow-step');
+  steps[flowStep].classList.remove('visible', 'current');
+  flowStep--;
+  updateFlow();
+}
+function flowReset() {
+  flowStep = -1;
+  document.querySelectorAll('#flowSteps .flow-step').forEach(s => s.classList.remove('visible', 'current'));
+  document.querySelectorAll('.flow-actor-col').forEach(a => a.classList.remove('active'));
+  document.getElementById('flowProgressBar').style.width = '0%';
+  document.getElementById('flowPrevBtn').disabled = true;
+  document.getElementById('flowNextBtn').disabled = false;
+  document.getElementById('flowNextBtn').textContent = 'Наступний крок';
+}
+
+function updateFlow() {
+  const steps = document.querySelectorAll('#flowSteps .flow-step');
+  steps.forEach((s, i) => {
+    if (i <= flowStep) s.classList.add('visible');
+    s.classList.toggle('current', i === flowStep);
+  });
+
+  // Highlight actors
+  document.querySelectorAll('.flow-actor-col').forEach(a => a.classList.remove('active'));
+  if (flowStep >= 0) {
+    const actors = steps[flowStep].dataset.actors.split(',');
+    actors.forEach(a => document.getElementById('flowActor' + a).classList.add('active'));
+  }
+
+  document.getElementById('flowProgressBar').style.width = ((flowStep + 1) / flowTotal * 100) + '%';
+  document.getElementById('flowPrevBtn').disabled = flowStep <= 0;
+
+  if (flowStep >= flowTotal - 1) {
+    document.getElementById('flowNextBtn').disabled = true;
+    document.getElementById('flowNextBtn').textContent = 'Готово!';
+    rainEmojis(['&#x1F389;', '&#x1F3AB;', '&#x2705;', '&#x1F512;'], 15);
+  }
+}
+
+// ── SCENE 3: ATTACK FLOW (WITHOUT OAUTH) ──
+let atkStep = -1;
+const atkTotal = 7;
+
+function atkNext() {
+  if (atkStep >= atkTotal - 1) return;
+  atkStep++;
+  updateAtk();
+}
+function atkPrev() {
+  if (atkStep <= 0) return;
+  const steps = document.querySelectorAll('#attackTimeline .attack-step');
+  steps[atkStep].classList.remove('visible', 'current');
+  atkStep--;
+  updateAtk();
+}
+function atkReset() {
+  atkStep = -1;
+  document.querySelectorAll('#attackTimeline .attack-step').forEach(s => { s.classList.remove('visible', 'current'); });
+  document.querySelectorAll('#attackNodes .attack-node').forEach(n => n.classList.remove('hacked'));
+  document.getElementById('atkProgressBar').style.width = '0%';
+  document.getElementById('atkPrevBtn').disabled = true;
+  document.getElementById('atkNextBtn').disabled = false;
+  document.getElementById('atkNextBtn').textContent = 'Наступний крок';
+}
+
+function updateAtk() {
+  const steps = document.querySelectorAll('#attackTimeline .attack-step');
+  steps.forEach((s, i) => {
+    if (i <= atkStep) s.classList.add('visible');
+    s.classList.toggle('current', i === atkStep);
+  });
+
+  // Hack PrintApp at step 3
+  if (atkStep >= 3) document.getElementById('atkNode1').classList.add('hacked');
+  // Hack SecureNotes at step 5
+  if (atkStep >= 5) document.getElementById('atkNode2').classList.add('hacked');
+
+  document.getElementById('atkProgressBar').style.width = ((atkStep + 1) / atkTotal * 100) + '%';
+  document.getElementById('atkPrevBtn').disabled = atkStep <= 0;
+
+  if (atkStep >= atkTotal - 1) {
+    document.getElementById('atkNextBtn').disabled = true;
+    document.getElementById('atkNextBtn').textContent = 'Game Over';
+    rainEmojis(['&#x1F4A5;', '&#x1F525;', '&#x1F47F;', '&#x1F480;'], 20);
+  }
+}
+
+// ── SCENE 4: SAFE FLOW (WITH OAUTH) ──
+let safeStep = -1;
+const safeTotal = 7;
+
+function safeNext() {
+  if (safeStep >= safeTotal - 1) return;
+  safeStep++;
+  updateSafe();
+}
+function safePrev() {
+  if (safeStep <= 0) return;
+  const steps = document.querySelectorAll('#safeTimeline .attack-step');
+  steps[safeStep].classList.remove('visible', 'current');
+  safeStep--;
+  updateSafe();
+}
+function safeReset() {
+  safeStep = -1;
+  document.querySelectorAll('#safeTimeline .attack-step').forEach(s => { s.classList.remove('visible', 'current'); });
+  document.getElementById('safeProgressBar').style.width = '0%';
+  document.getElementById('safePrevBtn').disabled = true;
+  document.getElementById('safeNextBtn').disabled = false;
+  document.getElementById('safeNextBtn').textContent = 'Наступний крок';
+  document.getElementById('safeInsight').style.display = 'none';
+}
+
+function updateSafe() {
+  const steps = document.querySelectorAll('#safeTimeline .attack-step');
+  steps.forEach((s, i) => {
+    if (i <= safeStep) s.classList.add('visible');
+    s.classList.toggle('current', i === safeStep);
+  });
+
+  document.getElementById('safeProgressBar').style.width = ((safeStep + 1) / safeTotal * 100) + '%';
+  document.getElementById('safePrevBtn').disabled = safeStep <= 0;
+
+  if (safeStep >= safeTotal - 1) {
+    document.getElementById('safeNextBtn').disabled = true;
+    document.getElementById('safeNextBtn').textContent = 'Безпечно!';
+    document.getElementById('safeInsight').style.display = 'block';
+    document.getElementById('safeInsight').style.animation = 'popIn 0.4s ease';
+    rainEmojis(['&#x2705;', '&#x1F6E1;', '&#x1F512;', '&#x1F389;'], 15);
+  }
+}
+
+// ── SCENE 9: TOKEN ──
+function decodeToken() {
+  document.getElementById('tokenDecoded').classList.add('visible');
+  document.getElementById('tokenInsight').style.display = 'block';
+  document.getElementById('tokenInsight').style.animation = 'popIn 0.4s ease';
+}
+
+// ── SCENE 10: REVOKE ──
+function revokeApp(idx) {
+  const card = document.getElementById('app' + idx);
+  card.classList.remove('connected');
+  card.classList.add('revoked');
+  const names = ['PrintApp', 'CloudSync', 'Analytics'];
+  const msg = document.getElementById('revokeMessage');
+  msg.style.display = 'block';
+  msg.innerHTML = `&#x1F6E1; Доступ <strong>${names[idx]}</strong> відкликано! Інші додатки працюють як і раніше.`;
+  msg.style.animation = 'popIn 0.3s ease';
+}
+
+// ── SCENE 12: QUIZ ──
+const quizData = [
+  {
+    q: 'Що таке "Password Anti-Pattern"?',
+    opts: [
+      'Використання слабкого пароля',
+      'Передача пароля стороннім додаткам',
+      'Нечаста зміна паролів',
+      'Використання одного пароля скрізь'
+    ],
+    correct: 1,
+    explain: 'Password anti-pattern — це коли ви передаєте свої облікові дані сторонньому додатку, щоб він мав доступ до ваших даних. OAuth існує саме для вирішення цієї проблеми.'
+  },
+  {
+    q: 'Хто в OAuth видає access token?',
+    opts: [
+      'Resource Owner (користувач)',
+      'Client (додаток)',
+      'Authorization Server (сервер авторизації)',
+      'Resource Server (сервер ресурсів / API)'
+    ],
+    correct: 2,
+    explain: 'Authorization Server автентифікує користувача, збирає згоду та видає токени. Це центральний орган довіри у протоколі.'
+  },
+  {
+    q: 'Чому authorization code обмінюється сервер-сервер?',
+    opts: [
+      'Це швидше',
+      'Щоб access token ніколи не з\'явився у браузері',
+      'Браузер не може робити HTTP-запити',
+      'Цього вимагає JavaScript'
+    ],
+    correct: 1,
+    explain: 'Back-channel обмін гарантує, що access token ніколи не потрапить у URL, історію браузера або логи. Це ключова властивість безпеки Authorization Code Flow.'
+  },
+  {
+    q: 'Що контролює "scope" в OAuth?',
+    opts: [
+      'Скільки живе токен',
+      'До якого сервера підключатися',
+      'Які конкретно дії може виконувати додаток',
+      'Який алгоритм шифрування використовується'
+    ],
+    correct: 2,
+    explain: 'Scopes обмежують дії додатка — наприклад, notes:read дозволяє читати нотатки, але не видаляти їх. Це принцип найменших привілеїв (Least Privilege) у дії.'
+  }
+];
+
+let quizIdx = 0;
+let quizAnswered = false;
+
+function initQuiz() {
+  quizIdx = 0;
+  renderQuiz();
+}
+
+function renderQuiz() {
+  quizAnswered = false;
+  document.getElementById('nextQuizBtn').style.display = 'none';
+  const c = document.getElementById('quizContainer');
+  const q = quizData[quizIdx];
+  c.innerHTML = `
+    <div style="font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:12px;">Питання ${quizIdx + 1} з ${quizData.length}</div>
+    <div class="quiz-question">${q.q}</div>
+    <div class="quiz-options">
+      ${q.opts.map((o, i) => `
+        <div class="quiz-option" onclick="answerQuiz(${i})">
+          <div class="opt-letter">${'АБВГ'[i]}</div>
+          <div>${o}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
+  `;
+}
+
+function answerQuiz(idx) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const q = quizData[quizIdx];
+  const opts = document.querySelectorAll('.quiz-option');
+  opts[idx].classList.add(idx === q.correct ? 'correct' : 'wrong');
+  if (idx !== q.correct) opts[q.correct].classList.add('correct');
+
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback show ' + (idx === q.correct ? 'correct-fb' : 'wrong-fb');
+  fb.innerHTML = (idx === q.correct ? '&#x2705; Правильно! ' : '&#x274C; Не зовсім. ') + q.explain;
+
+  if (idx === q.correct) rainEmojis(['&#x2705;', '&#x1F389;'], 6);
+
+  if (quizIdx < quizData.length - 1) {
+    document.getElementById('nextQuizBtn').style.display = 'inline-flex';
+  }
+}
+
+function nextQuiz() {
+  quizIdx++;
+  if (quizIdx < quizData.length) renderQuiz();
+}
+
+// ── EMOJI RAIN ──
+function rainEmojis(emojis, count) {
+  const container = document.getElementById('emojiRain');
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'emoji-drop';
+    el.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.animationDelay = Math.random() * 1.5 + 's';
+    el.style.animationDuration = (2 + Math.random() * 2) + 's';
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+}
+
+// ── INIT ──
+updateNav();
+</script>
+
+</body>
+</html>
